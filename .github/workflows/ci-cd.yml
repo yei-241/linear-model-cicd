@@ -1,0 +1,43 @@
+name: Train and release linear model
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Train and evaluate on held-out rows
+        run: python train_model.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linear-model
+          path: dist/*
+          if-no-files-found: error
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: train
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linear-model
+          path: dist
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          TAG: model-${{ github.run_number }}-${{ github.run_attempt }}
+        run: gh release create "$TAG" dist/* --target "$COMMIT" --title "$TAG" --notes "Linear regression model and held-out evaluation metrics built by GitHub Actions."
