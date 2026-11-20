@@ -1,0 +1,4 @@
+__pycache__/
+linear_model.txt
+linear_model.pkl
+.venv/
